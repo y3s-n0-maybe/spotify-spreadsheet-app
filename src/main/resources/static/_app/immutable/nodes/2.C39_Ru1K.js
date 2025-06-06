@@ -1,1 +1,0 @@
-import{f as p,a as e}from"../chunks/BOj4xbuY.js";import"../chunks/D0TyWdFy.js";import{n as o}from"../chunks/A37Z9kC0.js";var t=p("<h1>Hello!</h1> <br/> <p>Making a super sexy webpage huzzah</p> <br/> <h3>Insert spotify app here</h3>",1);function s(r){var a=t();o(8),e(r,a)}export{s as component};
