@@ -5,7 +5,18 @@
 
     let playlist = '';
 
+    let loading;
+
+    let loaded = true;
+
+    $: tracks = [];
+
+    let progress;
+    let totalRequests;
+
     async function handleGo() {
+        tracks = [];
+        loading = true;
         console.log("fetching playlist...");
 
         const tokenResponse = await fetch('/api/token');
@@ -21,13 +32,58 @@
             method: 'GET'
         });
 
-        const data = await response.json();
+        let data = await response.json();
         console.log(data);
+
+        tracks.push.apply(tracks, data.tracks.items);
+
+        let numTracks = data.tracks.total;
+
+        totalRequests = Math.ceil(numTracks/100 - 1);
+
+        for (progress = 0; progress < totalRequests; progress++) {
+            const trackResponse = await fetch(progress === 0 ? data.tracks.next : data.next, {
+                headers: myHeaders,
+                method: 'GET'
+            });
+
+            data = await trackResponse.json();
+            console.log(data);
+            tracks.push.apply(tracks, data.items);
+        }
+
+        console.log(tracks);
+        loaded = false;
+        loading = false;
+    }
+
+    function sendToBackend() {
+        console.log("Sending data to backend...");
+
+        fetch ('/api/playlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({tracks})
+        })
+
+        .then(response => response.blob())
+        .then(blob => {
+            var file = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = file;
+            a.download = 'playlist.xlsx'
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(file);
+        })
     }
 </script>
 
 <style>
-    :root{
+     :root {
         min-height: 100vh;
         --headers: plum;
         --text: plum; 
@@ -38,9 +94,10 @@
         --spot-black: #121212;
         --spot-green: #1ED760;
         --borders: 2px solid var(--spot-green);
-        background: linear-gradient(to bottom, var(--spot-black), var(--spot-green));
+        background: var(--spot-black);
     }
-    h1{
+    
+    h1 {
         color: white;
         font-family: var(--font-family);
         font-size:30px !important;
@@ -53,7 +110,8 @@
         width: 50%;
         margin: auto;
     }
-    h2{
+
+    h2 {
         color: white;
         font-family: var(--font-family);
         font-size:20px !important;
@@ -62,7 +120,8 @@
         text-align: center;
         margin: 2px auto;
     }
-    input{
+
+    input {
         color: white;
         font-family: var(--font-family);
         font-size:20px !important;
@@ -75,14 +134,16 @@
         width: 450px;
         border-radius: var(--curve);
     }
+
     .wrapper {
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 10px;
         margin: 2px auto;
-    }   
-    button{
+    }  
+
+    button {
         color: white;
         font-family: var(--font-family);
         font-size:20px !important;
@@ -95,23 +156,99 @@
         border-color: var(--spot-green);
         border-radius: var(--curve);
     }
-    button:hover{
+
+    button:hover {
         color: var(--spot-black);
         background-color: var(--spot-green);
+    }
+
+    table {
+        border-collapse: collapse;
+        border: 2px solid var(--spot-green);
+        font-family: sans-serif;
+        font-size: 1rem;
+        letter-spacing: 1px;
+        margin: auto;
+        color: white;
+    }
+
+    th,
+    td {
+        border: 1px solid var(--spot-green);
+        padding: 8px 10px;
+    }
+
+    td:last-of-type {
+        text-align: center;
+    }
+
+    .progressBarFiller {
+        color: var(--spot-black);
+        font-family: var(--font-family);
+        font-size:20px !important;
+        font-weight: 1;
+        padding:10px;
+        margin: 2px auto;
+        background-color: var(--spot-green);
+        height: 30px;
+    }
+
+    .progressBar {
+        background-color: var(--spot-black);
+        font-weight: 1;
+        padding:10px;
+        margin: 2px auto;
+        height: 30px;
+        width: 450px;
     }
 </style>
 
 <head>
- <title>Spotify Spreadsheet App</title>
+    <title>Spotify Spreadsheet App</title>
 </head>
 
 <h1>Spotify Spreadsheet Doohickey</h1>
 
 <h2>Please paste the link to your Spotify playlist here</h2>
+
 <div class="wrapper">
     <input type="text" placeholder="https://open.spotify.com/playlist/xxxxxxxx" id="playlist-link" bind:value={playlist}/>
 </div>
+
 <div class="wrapper">
     <button id="load-playlist" on:click={handleGo}>Go</button>
 </div>
 
+<div class="wrapper">
+    {#if !loaded}
+    <button on:click={sendToBackend}>Send to Backend</button>
+    {/if}
+</div>
+
+{#if loading}
+    <div class="progressBar">
+        <div class="progressBarFiller" style="width: {(progress/totalRequests)*450}">{progress}/{totalRequests}</div>
+    </div>
+{/if}
+
+{#if !loaded}
+    <table>
+        <thead>
+            <tr>
+                <th>Track name</th>
+                <th>Artist</th>
+                <th>Album</th>
+            </tr>
+        </thead>
+        <tbody>
+            {#each tracks as track}
+                {@const trackKey = track.track}
+                <tr>
+                    <td>{track.track.name}</td>
+                    <td>{track.track.artists.map(artist => artist.name).join(', ')}</td>
+                    <td>{track.track.album.name}</td>
+                </tr>
+            {/each}
+        </tbody>
+    </table>
+{/if}
