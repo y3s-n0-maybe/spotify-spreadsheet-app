@@ -42,7 +42,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 public class APIController {
 	
 	private static String clientID = "1f437741a3d14358a33953f99124058c";
-	private static String clientSecret = "haha not this time bitches"; // remember to hide this
+	private static String clientSecret = "e004b36401c345c69f19949fbd7526c1"; // remember to hide this
 	
 	private static String requestBody;
     

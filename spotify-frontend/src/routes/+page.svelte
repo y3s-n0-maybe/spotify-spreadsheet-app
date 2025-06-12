@@ -11,8 +11,8 @@
 
     $: tracks = [];
 
-    let progress;
-    let totalRequests;
+    let progress = 0;
+    let totalRequests = 0;
 
     async function handleGo() {
         tracks = [];
@@ -185,21 +185,22 @@
     .progressBarFiller {
         color: var(--spot-black);
         font-family: var(--font-family);
-        font-size:20px !important;
+        font-size:20px;
         font-weight: 1;
-        padding:10px;
-        margin: 2px auto;
         background-color: var(--spot-green);
         height: 30px;
+        border-radius: var(--curve);
+        margin: auto;
+        position: relative;
     }
 
     .progressBar {
-        background-color: var(--spot-black);
+        background-color: lightgrey;
         font-weight: 1;
-        padding:10px;
-        margin: 2px auto;
         height: 30px;
         width: 450px;
+        border-radius: var(--curve);
+        margin: auto;
     }
 </style>
 
@@ -227,7 +228,11 @@
 
 {#if loading}
     <div class="progressBar">
-        <div class="progressBarFiller" style="width: {(progress/totalRequests)*450}">{progress}/{totalRequests}</div>
+        {#if totalRequests = 0}
+        	<div class="progressBarFiller" style="width: 450px; background-color: lightgrey">Processing...</div>
+        {:else if totalRequests != 0}
+            <div class="progressBarFiller" style="width: {(progress/totalRequests)*450}px; left:{-225+(((progress/totalRequests)*450)/2)}px">{progress}/{totalRequests}</div>
+        {/if}
     </div>
 {/if}
 
