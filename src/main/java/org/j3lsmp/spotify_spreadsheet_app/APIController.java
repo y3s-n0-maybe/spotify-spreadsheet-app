@@ -13,16 +13,22 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -42,11 +48,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 public class APIController {
 	
 	private static String clientID = "1f437741a3d14358a33953f99124058c";
-	private static String clientSecret = "e004b36401c345c69f19949fbd7526c1"; // remember to hide this
+	private static String clientSecret = "0695e0880d454b7f97a8f44ed0dc1057"; // remember to hide this
 	
 	private static String requestBody;
     
     private static Pattern tokenRegex = Pattern.compile("\\\"access_token\\\":\\\"([a-zA-Z0-9_-]+)\\\"");
+    
+    private static final int NUM_COLS = 3;
     
 	static {
 		StringBuilder result = new StringBuilder();
@@ -110,17 +118,32 @@ public class APIController {
         addHeaders(sheet);
         
         Iterator<JsonNode> iter = rootNode.elements();
-        for (int i = 0; iter.hasNext(); i++) {
+        for (int i = 1; iter.hasNext(); i++) {
             JsonNode next = iter.next();
             XSSFRow trackRow = sheet.createRow(i);
+            
             XSSFCell nameCell = trackRow.createCell(0);
-            nameCell.setCellValue(next.get("track").get("name").toString());
+            nameCell.setCellValue(next.get("track").get("name").toString().replaceAll("\"", ""));
+            
             XSSFCell artistCell = trackRow.createCell(1);
             artistCell.setCellValue(artistString(next.get("track").get("artists")));
+            
             XSSFCell albumCell = trackRow.createCell(2);
-            albumCell.setCellValue(next.get("track").get("album").get("name").toString());
-        }       
-
+            albumCell.setCellValue(next.get("track").get("album").get("name").toString().replaceAll("\"", ""));
+            
+            XSSFCell popularityCell = trackRow.createCell(3);
+            popularityCell.setCellValue(next.get("track").get("popularity").toString().replaceAll("\"", ""));
+            
+            XSSFCell addedAtCell = trackRow.createCell(4);
+            addedAtCell.setCellValue(addedAtString(next.get("added_at")));
+            
+            XSSFCell durationCell = trackRow.createCell(5);
+            durationCell.setCellValue(durationString(next.get("track").get("duration_ms")));
+        }
+        
+        for (int i = 0; i < NUM_COLS; i++)
+            sheet.autoSizeColumn(i);
+        
         PipedOutputStream pipedOutputStream = new PipedOutputStream();
         PipedInputStream pipedInputStream = new PipedInputStream(pipedOutputStream);
         
@@ -146,10 +169,11 @@ public class APIController {
                 .body(responseBody);
     }
     
-    String[] headers = {"Track Name", "Artist", "Album"};
+    String[] headers = {"Track", "Artist", "Album", "Popularity", "Added At", "Duration"};
     
     private void addHeaders(XSSFSheet sheet) {
     	XSSFRow row = sheet.createRow(0);
+    	
     	for (int i = 0; i < headers.length; i++) {
     		XSSFCell cell = row.createCell(i);
     		cell.setCellValue(headers[i]);
@@ -161,10 +185,30 @@ public class APIController {
     	Iterator<JsonNode> iter = ((ArrayNode) artistsNode).iterator();
     	while (iter.hasNext()) {
     		JsonNode artistNode = iter.next();
-    		sb.append(artistNode.get("name").toString());
+    		sb.append(artistNode.get("name").toString().replaceAll("\"", ""));
     		if (iter.hasNext())
     			sb.append(", ");
     	}
     	return sb.toString();
+    }
+    
+    private String addedAtString(JsonNode addedAtNode) {
+    	DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+        OffsetDateTime odt = OffsetDateTime.parse(addedAtNode.toString().replaceAll("\"", ""));
+
+        Instant instant = odt.toInstant();
+        LocalDateTime ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+
+        return ldt.format(format);
+  }
+    
+    private String durationString(JsonNode durationNode) {
+    	  int ms = Integer.parseInt(durationNode.toString());
+    	  
+    	  int seconds = ms / 1000;
+    	  int minutes = Math.floorDiv(seconds, 60);
+    	  seconds %= 60;
+    	  
+    	  return String.format("%d:%s", minutes, (seconds < 10) ? "0" + seconds : seconds);
     }
 }
